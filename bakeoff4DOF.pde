@@ -16,10 +16,93 @@ final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
 //These variables are for my example design. Your input code should modify/replace these!
-float logoX = 0;
-float logoY = 0;
-float logoZ = 50f;
-float logoRotation = 0;
+
+private class Anchor {
+  float x = 0;
+  float y = 0;
+  float z = 10f;
+  
+  public Anchor(float x, float y, float z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+  
+  public void updatePosition(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+  
+  public void updateSize(float z) {
+    this.z = z;
+  }
+  
+  public boolean underMouse() {
+    float adjustedMouseX = mouseX - width/2;
+    float adjustedMouseY = mouseY - height/2;
+    return dist(this.x, this.y, adjustedMouseX, adjustedMouseY) < this.z;
+  }
+  
+  // Assume coordinates have been translated by caller
+  public void drawAnchor() {
+    noStroke();
+    fill(192, 192, 60, 100);
+    circle(this.x, this.y, this.z);
+  }
+}
+
+private class Logo {
+  float x = 0;
+  float y = 0;
+  float z = 50f;
+  float rotation = 0;
+  Anchor centerAnchor;
+  Anchor[] cornerAnchors = new Anchor[4];
+  Anchor[] rotateAnchors = new Anchor[4];
+  boolean dragging = false;
+  
+  public Logo() {
+    float anchorSize = this.z / 4f;
+    float anchorShift = this.z / 2f;
+    
+    // Anchor coordinates should be relative to Logo's center
+    
+    this.centerAnchor = new Anchor(0, 0, anchorSize);
+    
+    this.cornerAnchors[0] = new Anchor(-anchorShift, -anchorShift, anchorSize);
+    this.cornerAnchors[1] = new Anchor(anchorShift, -anchorShift, anchorSize);
+    this.cornerAnchors[2] = new Anchor(-anchorShift, anchorShift, anchorSize);
+    this.cornerAnchors[3] = new Anchor(anchorShift, anchorShift, anchorSize);
+    
+    this.rotateAnchors[0] = new Anchor(0, -anchorShift * 1.5f, anchorSize);
+    this.rotateAnchors[1] = new Anchor(anchorShift * 1.5f, 0, anchorSize);
+    this.rotateAnchors[2] = new Anchor(0, anchorShift * 1.5f, anchorSize);
+    this.rotateAnchors[3] = new Anchor(-anchorShift * 1.5f, 0, anchorSize);
+  }
+  
+  public void moveToMouse() {
+    this.x = mouseX - width/2;
+    this.y = mouseY - height/2;
+  }
+  
+  public void drawLogo() {
+    pushMatrix();
+    translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+    translate(this.x, this.y);
+    rotate(radians(this.rotation));
+    noStroke();
+    fill(60, 60, 192, 192);
+    rect(0, 0, this.z, this.z);
+    
+    this.centerAnchor.drawAnchor();
+    for (int i = 0; i < 4; i++) {
+      this.cornerAnchors[i].drawAnchor();
+      this.rotateAnchors[i].drawAnchor();
+    }
+    
+    popMatrix();
+  }
+}
 
 private class Destination
 {
@@ -31,9 +114,12 @@ private class Destination
 
 ArrayList<Destination> destinations = new ArrayList<Destination>();
 
+Logo logo = new Logo();
+
 void setup() {
   size(1000, 800);  
   rectMode(CENTER);
+  ellipseMode(CENTER);
   textFont(createFont("Arial", inchToPix(.3f))); //sets the font to Arial that is 0.3" tall
   textAlign(CENTER);
 
@@ -91,15 +177,12 @@ void draw() {
     popMatrix();
   }
 
+  if (logo.dragging) {
+    logo.moveToMouse();
+  }
+
   //===========DRAW LOGO SQUARE=================
-  pushMatrix();
-  translate(width/2, height/2); //center the drawing coordinates to the center of the screen
-  translate(logoX, logoY);
-  rotate(radians(logoRotation));
-  noStroke();
-  fill(60, 60, 192, 192);
-  rect(0, 0, logoZ, logoZ);
-  popMatrix();
+  logo.drawLogo();
 
   //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
@@ -110,42 +193,42 @@ void draw() {
 //my example design for control, which is terrible
 void scaffoldControlLogic()
 {
-  //upper left corner, rotate counterclockwise
-  text("CCW", inchToPix(.4f), inchToPix(.4f));
-  if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
-    logoRotation--;
+  ////upper left corner, rotate counterclockwise
+  //text("CCW", inchToPix(.4f), inchToPix(.4f));
+  //if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
+  //  logoRotation--;
 
-  //upper right corner, rotate clockwise
-  text("CW", width-inchToPix(.4f), inchToPix(.4f));
-  if (mousePressed && dist(width, 0, mouseX, mouseY)<inchToPix(.8f))
-    logoRotation++;
+  ////upper right corner, rotate clockwise
+  //text("CW", width-inchToPix(.4f), inchToPix(.4f));
+  //if (mousePressed && dist(width, 0, mouseX, mouseY)<inchToPix(.8f))
+  //  logoRotation++;
 
-  //lower left corner, decrease Z
-  text("-", inchToPix(.4f), height-inchToPix(.4f));
-  if (mousePressed && dist(0, height, mouseX, mouseY)<inchToPix(.8f))
-    logoZ = constrain(logoZ-inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone!
+  ////lower left corner, decrease Z
+  //text("-", inchToPix(.4f), height-inchToPix(.4f));
+  //if (mousePressed && dist(0, height, mouseX, mouseY)<inchToPix(.8f))
+  //  logoZ = constrain(logoZ-inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone!
 
-  //lower right corner, increase Z
-  text("+", width-inchToPix(.4f), height-inchToPix(.4f));
-  if (mousePressed && dist(width, height, mouseX, mouseY)<inchToPix(.8f))
-    logoZ = constrain(logoZ+inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone! 
+  ////lower right corner, increase Z
+  //text("+", width-inchToPix(.4f), height-inchToPix(.4f));
+  //if (mousePressed && dist(width, height, mouseX, mouseY)<inchToPix(.8f))
+  //  logoZ = constrain(logoZ+inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone! 
 
-  //left middle, move left
-  text("left", inchToPix(.4f), height/2);
-  if (mousePressed && dist(0, height/2, mouseX, mouseY)<inchToPix(.8f))
-    logoX-=inchToPix(.02f);
+  ////left middle, move left
+  //text("left", inchToPix(.4f), height/2);
+  //if (mousePressed && dist(0, height/2, mouseX, mouseY)<inchToPix(.8f))
+  //  logoX-=inchToPix(.02f);
 
-  text("right", width-inchToPix(.4f), height/2);
-  if (mousePressed && dist(width, height/2, mouseX, mouseY)<inchToPix(.8f))
-    logoX+=inchToPix(.02f);
+  //text("right", width-inchToPix(.4f), height/2);
+  //if (mousePressed && dist(width, height/2, mouseX, mouseY)<inchToPix(.8f))
+  //  logoX+=inchToPix(.02f);
 
-  text("up", width/2, inchToPix(.4f));
-  if (mousePressed && dist(width/2, 0, mouseX, mouseY)<inchToPix(.8f))
-    logoY-=inchToPix(.02f);
+  //text("up", width/2, inchToPix(.4f));
+  //if (mousePressed && dist(width/2, 0, mouseX, mouseY)<inchToPix(.8f))
+  //  logoY-=inchToPix(.02f);
 
-  text("down", width/2, height-inchToPix(.4f));
-  if (mousePressed && dist(width/2, height, mouseX, mouseY)<inchToPix(.8f))
-    logoY+=inchToPix(.02f);
+  //text("down", width/2, height-inchToPix(.4f));
+  //if (mousePressed && dist(width/2, height, mouseX, mouseY)<inchToPix(.8f))
+  //  logoY+=inchToPix(.02f);
 }
 
 
@@ -156,38 +239,56 @@ void mousePressed()
     startTime = millis();
     println("time started!");
   }
+  
+  pushMatrix();
+  translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+  
+  // If user is pressing close to center of Logo
+  if (mouseOverLogo()) {
+    logo.dragging = true;
+  }
+  
+  popMatrix();
 }
 
 
 void mouseReleased()
 {
   //check to see if user clicked middle of screen within 3 inches, which this code uses as a submit button
-  if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
-  {
-    if (userDone==false && !checkForSuccess())
-      errorCount++;
+  //if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
+  //{
+  //  if (userDone==false && !checkForSuccess())
+  //    errorCount++;
 
-    trialIndex++; //and move on to next trial
+  //  trialIndex++; //and move on to next trial
 
-    if (trialIndex==trialCount && userDone==false)
-    {
-      userDone = true;
-      finishTime = millis();
-    }
-  }
+  //  if (trialIndex==trialCount && userDone==false)
+  //  {
+  //    userDone = true;
+  //    finishTime = millis();
+  //  }
+  //}
+  
+  logo.dragging = false;
+}
+
+public boolean mouseOverLogo() {
+  float adjustedMouseX = mouseX - width/2;
+  float adjustedMouseY = mouseY - height/2;
+  return dist(logo.x, logo.y, adjustedMouseX, adjustedMouseY) < logo.z;
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
 public boolean checkForSuccess()
 {
   Destination d = destinations.get(trialIndex);	
-  boolean closeDist = dist(d.x, d.y, logoX, logoY)<inchToPix(.05f); //has to be within +-0.05"
-  boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logoRotation)<=5;
-  boolean closeZ = abs(d.z - logoZ)<inchToPix(.05f); //has to be within +-0.05"	
+  boolean closeDist = dist(d.x, d.y, logo.x, logo.y)<inchToPix(.05f); //has to be within +-0.05"
+  boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logo.rotation)<=5;
+  boolean closeZ = abs(d.z - logo.z)<inchToPix(.05f); //has to be within +-0.05"	
 
-  println("Close Enough Distance: " + closeDist + " (logo X/Y = " + d.x + "/" + d.y + ", destination X/Y = " + logoX + "/" + logoY +")");
-  println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(d.rotation, logoRotation)+")");
-  println("Close Enough Z: " +  closeZ + " (logo Z = " + d.z + ", destination Z = " + logoZ +")");
+  println("Close Enough Distance: " + closeDist + " (logo X/Y = " + d.x + "/" + d.y + ", destination X/Y = " + logo.x + "/" + logo.y +")");
+  println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(d.rotation, logo.rotation)+")");
+  println("Close Enough Z: " +  closeZ + " (logo Z = " + d.z + ", destination Z = " + logo.z +")");
   println("Close enough all: " + (closeDist && closeRotation && closeZ));
 
   return closeDist && closeRotation && closeZ;
