@@ -38,9 +38,8 @@ private class Anchor {
   }
   
   public boolean underMouse() {
-    float adjustedMouseX = mouseX - width/2;
-    float adjustedMouseY = mouseY - height/2;
-    return dist(this.x, this.y, adjustedMouseX, adjustedMouseY) < this.z;
+    System.out.println(String.format("%.2f,%.2f,%.2f,%.2f,%.2f", this.x, this.y, this.z, adjMouseX(), adjMouseY()));
+    return dist(this.x, this.y, adjMouseX(), adjMouseY()) < this.z;
   }
   
   // Assume coordinates have been translated by caller
@@ -56,10 +55,14 @@ private class Logo {
   float y = 0;
   float z = 50f;
   float rotation = 0;
+  
   Anchor centerAnchor;
   Anchor[] cornerAnchors = new Anchor[4];
   Anchor[] rotateAnchors = new Anchor[4];
+  
   boolean dragging = false;
+  boolean resizing = false;
+  boolean rotating = false;
   
   public Logo() {
     float anchorSize = this.z / 4f;
@@ -80,14 +83,9 @@ private class Logo {
     this.rotateAnchors[3] = new Anchor(-anchorShift * 1.5f, 0, anchorSize);
   }
   
-  public void moveToMouse() {
-    this.x = mouseX - width/2;
-    this.y = mouseY - height/2;
-  }
-  
   public void drawLogo() {
     pushMatrix();
-    translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+    translate(width/2 + this.x, height/2 + this.y); // center the screen coords on the logo coords 
     translate(this.x, this.y);
     rotate(radians(this.rotation));
     noStroke();
@@ -101,6 +99,53 @@ private class Logo {
     }
     
     popMatrix();
+  }
+  
+  public boolean mouseOverCenter() {
+    return this.centerAnchor.underMouse();
+  }
+  
+  public boolean mouseOverCorner() {
+    boolean b = false;
+    for (int i = 0; i < 4; i++) {
+      b = b || this.cornerAnchors[i].underMouse();
+    }
+    return b;
+  }
+  
+  public boolean mouseOverRotate() {
+    boolean b = false;
+    for (int i = 0; i < 4; i++) {
+      b = b || this.rotateAnchors[i].underMouse();
+    }
+    return b;
+  }
+  
+  public void moveToMouse() {
+    // This doesn't use adjMouseX because otherwise wouldn't move
+    // Just adjusts mouse coords repective to center of screen
+    // Uses "absolute" positioning (from center)
+    this.x = mouseX - width/2;
+    this.y = mouseY - height/2;
+  }
+  
+  public void resizeToMouse() {
+    this.z = dist(this.x, this.y, adjMouseX(), adjMouseY());
+  }
+  
+  public void rotateToMouse() {
+    return;
+  }
+  
+  public void updateFromMouse() {
+    if (this.dragging) {
+      this.moveToMouse();
+      //System.out.println(String.format("(%.2f,%.2f,%.2f)-(%.2f,%.2f,%.2f)", this.x, this.y, this.z, this.centerAnchor.x, this.centerAnchor.y, this.centerAnchor.z));
+    } else if (this.resizing) {
+      this.resizeToMouse();
+    } else if (this.rotating) {
+      this.rotateToMouse();
+    }
   }
 }
 
@@ -177,9 +222,7 @@ void draw() {
     popMatrix();
   }
 
-  if (logo.dragging) {
-    logo.moveToMouse();
-  }
+  logo.updateFromMouse();
 
   //===========DRAW LOGO SQUARE=================
   logo.drawLogo();
@@ -240,15 +283,20 @@ void mousePressed()
     println("time started!");
   }
   
-  pushMatrix();
-  translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+  //pushMatrix();
+  //translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+  //translate(logo.x, logo.y);  // adjust to make center of logo center of coordinates
   
   // If user is pressing close to center of Logo
-  if (mouseOverLogo()) {
+  if (logo.mouseOverCenter()) {
     logo.dragging = true;
+  } else if (logo.mouseOverCorner()) {
+    logo.resizing = true;
+  } else if (logo.mouseOverRotate()) {
+    logo.rotating = true;
   }
   
-  popMatrix();
+  //popMatrix();
 }
 
 
@@ -270,12 +318,16 @@ void mouseReleased()
   //}
   
   logo.dragging = false;
+  logo.resizing = false;
+  logo.rotating = false;
 }
 
-public boolean mouseOverLogo() {
-  float adjustedMouseX = mouseX - width/2;
-  float adjustedMouseY = mouseY - height/2;
-  return dist(logo.x, logo.y, adjustedMouseX, adjustedMouseY) < logo.z;
+public float adjMouseX() {
+  return mouseX - width/2 - logo.x;
+}
+
+public float adjMouseY() {
+  return mouseY - height/2 - logo.y;
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
