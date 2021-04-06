@@ -93,11 +93,14 @@ void draw() {
 
   //===========DRAW LOGO SQUARE=================
   pushMatrix();
-  translate(width/2, height/2); //center the drawing coordinates to the center of the screen
   translate(logoX, logoY);
+  translate(width / 2, height / 2);
   rotate(radians(logoRotation));
   noStroke();
-  fill(60, 60, 192, 192);
+  if (checkForSuccess())
+    fill(60, 192, 60, 192);
+  else
+    fill(60, 60, 192, 192);
   rect(0, 0, logoZ, logoZ);
   popMatrix();
 
@@ -148,6 +151,14 @@ void scaffoldControlLogic()
     logoY+=inchToPix(.02f);
 }
 
+void mouseDragged() {
+  if (mouseX > pmouseX) logoRotation++;
+  if (mouseX < pmouseX) logoRotation--;
+  if (mouseY > pmouseY)
+    logoZ = constrain(logoZ-(pmouseY - mouseY), .01, inchToPix(4f));
+  if (mouseY < pmouseY)
+    logoZ = constrain(logoZ-(pmouseY - mouseY), .01, inchToPix(4f));
+}
 
 void mousePressed()
 {
@@ -156,24 +167,29 @@ void mousePressed()
     startTime = millis();
     println("time started!");
   }
+  if (mouseButton == LEFT) {
+    logoX = mouseX - width/2;
+    logoY = mouseY - height/2;
+  }
 }
 
+void submit() {
+  if (userDone==false && !checkForSuccess())
+    errorCount++;
+
+  trialIndex++; //and move on to next trial
+
+  if (trialIndex==trialCount && userDone==false)
+  {
+    userDone = true;
+    finishTime = millis();
+  }
+}
 
 void mouseReleased()
 {
-  //check to see if user clicked middle of screen within 3 inches, which this code uses as a submit button
-  if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
-  {
-    if (userDone==false && !checkForSuccess())
-      errorCount++;
-
-    trialIndex++; //and move on to next trial
-
-    if (trialIndex==trialCount && userDone==false)
-    {
-      userDone = true;
-      finishTime = millis();
-    }
+  if (mouseButton == RIGHT) {
+    submit();
   }
 }
 
