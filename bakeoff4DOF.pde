@@ -15,8 +15,6 @@ boolean userDone = false; //is the user done
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
-//These variables are for my example design. Your input code should modify/replace these!
-
 private class Anchor {
   float x = 0;
   float y = 0;
@@ -159,8 +157,17 @@ private class Logo {
     // tan(rotation) = adjMouseY / adjMouseX
     // rotation = arctan(adjMouseY / adjMouseX)
     // arctan returns radians, we assume degrees
-    System.out.println(String.format("%.2f, %.2f, %.2f`, %.2f, %.2f", mouseX - width/2 - this.x, mouseY - height/2 - this.y, this.rotation, adjMouseX(), adjMouseY()));
-    this.rotation += (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX())) % 360;
+    System.out.println(String.format("%.2f, %.2f, %.2f', %.2f, %.2f, %.2f'", mouseX - width/2 - this.x, mouseY - height/2 - this.y, this.rotation, adjMouseX(), adjMouseY(), Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()))));
+    
+    // Want rotation to adjust to make mouse inline with axis
+    // (i.e. diff between rotation and (mouseX-width/2-this.x, mouseY-height/2-this.y) goes to 0)
+    // Also makes adjMouseY go to 0 and adjMouseX is dist(0,0,mouseX-width/2-this.x, mouseY-height/2-this.y)
+    this.rotation += (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()));
+    
+    // Glitch happens when adjMouseY becomes large relative to adjMouseX
+    // Program is trying to keep adjMouseY low, so makes big jump in this scenario
+    // This happens when crossing an axis boundary
+    // More work needs to be done to figure out the specifics, but it isn't too problematic
   }
   
   public void updateFromMouse() {
@@ -253,51 +260,9 @@ void draw() {
   //===========DRAW LOGO SQUARE=================
   logo.drawLogo();
 
-  //===========DRAW EXAMPLE CONTROLS=================
+  //===========DRAW TRIAL INFO=================
   fill(255);
-  scaffoldControlLogic(); //you are going to want to replace this!
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
-}
-
-//my example design for control, which is terrible
-void scaffoldControlLogic()
-{
-  ////upper left corner, rotate counterclockwise
-  //text("CCW", inchToPix(.4f), inchToPix(.4f));
-  //if (mousePressed && dist(0, 0, mouseX, mouseY)<inchToPix(.8f))
-  //  logoRotation--;
-
-  ////upper right corner, rotate clockwise
-  //text("CW", width-inchToPix(.4f), inchToPix(.4f));
-  //if (mousePressed && dist(width, 0, mouseX, mouseY)<inchToPix(.8f))
-  //  logoRotation++;
-
-  ////lower left corner, decrease Z
-  //text("-", inchToPix(.4f), height-inchToPix(.4f));
-  //if (mousePressed && dist(0, height, mouseX, mouseY)<inchToPix(.8f))
-  //  logoZ = constrain(logoZ-inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone!
-
-  ////lower right corner, increase Z
-  //text("+", width-inchToPix(.4f), height-inchToPix(.4f));
-  //if (mousePressed && dist(width, height, mouseX, mouseY)<inchToPix(.8f))
-  //  logoZ = constrain(logoZ+inchToPix(.02f), .01, inchToPix(4f)); //leave min and max alone! 
-
-  ////left middle, move left
-  //text("left", inchToPix(.4f), height/2);
-  //if (mousePressed && dist(0, height/2, mouseX, mouseY)<inchToPix(.8f))
-  //  logoX-=inchToPix(.02f);
-
-  //text("right", width-inchToPix(.4f), height/2);
-  //if (mousePressed && dist(width, height/2, mouseX, mouseY)<inchToPix(.8f))
-  //  logoX+=inchToPix(.02f);
-
-  //text("up", width/2, inchToPix(.4f));
-  //if (mousePressed && dist(width/2, 0, mouseX, mouseY)<inchToPix(.8f))
-  //  logoY-=inchToPix(.02f);
-
-  //text("down", width/2, height-inchToPix(.4f));
-  //if (mousePressed && dist(width/2, height, mouseX, mouseY)<inchToPix(.8f))
-  //  logoY+=inchToPix(.02f);
 }
 
 
@@ -311,10 +276,6 @@ void mousePressed()
     println("time started!");
   }
   
-  //pushMatrix();
-  //translate(width/2, height/2); //center the drawing coordinates to the center of the screen
-  //translate(logo.x, logo.y);  // adjust to make center of logo center of coordinates
-  
   // If user is pressing close to center of Logo
   if (logo.mouseOverCenter()) {
     logo.dragging = true;
@@ -323,8 +284,6 @@ void mousePressed()
   } else if (logo.mouseOverRotate()) {
     logo.rotating = true;
   }
-  
-  //popMatrix();
 }
 
 
@@ -359,33 +318,30 @@ void mouseReleased()
 //    270
 //  180  0
 //    90
-
-public float adjMouseX() {
-  // dist_0 = sqrt(opp_0^2 + adj_0^2)
-  // tan(theta_0) = opp_0 / adj_0
-  // theta_0 = toDegrees(arctan(opp_0 / adj_0))
-  // theta_1 = theta_0 + rotation
-  // check quadrant of theta_1 (0,90)/(90,180)/(180,270)/(270,360)
-  //    to determine sign of new x and y
-  // tan(theta_1) = opp_1 / adj_1
-  // opp_1 = 1.0 * tan(theta_1)
-  // dist_1 = sqrt(opp_1^2 + 1.0^2) = sqrt(tan(theta_1)^2 + 1.0)
-  // opp_2 = (opp_1 / dist_1) * dist_0 = (opp_1 * dist_0) / dist_1
-  //    do the second version to avoid underflowing
-  // adj_2 = (1.0 / dist_1) * dist_0 = dist_0 / dist_1
+//
+// dist_0 = sqrt(opp_0^2 + adj_0^2)
+// tan(theta_0) = opp_0 / adj_0
+// theta_0 = toDegrees(arctan(opp_0 / adj_0))
+// theta_1 = theta_0 + rotation
+// check quadrant of theta_1 (0,90)/(90,180)/(180,270)/(270,360)
+//    to determine sign of new x and y
+// tan(theta_1) = opp_1 / adj_1
+// opp_1 = 1.0 * tan(theta_1)
+// dist_1 = sqrt(opp_1^2 + 1.0^2) = sqrt(tan(theta_1)^2 + 1.0)
+// opp_2 = (opp_1 / dist_1) * dist_0 = (opp_1 * dist_0) / dist_1
+//    do the second version to avoid underflowing
+// adj_2 = (1.0 / dist_1) * dist_0 = dist_0 / dist_1
   
+public float adjMouseX() {  
   // new_adj = dist_0 / dist_1
   // new_adj = sqrt(adjX^2 + adjY^2) / sqrt(tan(theta_1)^2 + 1.0)
   // new_adj = sqrt(adjX^2 + adjY^2) / sqrt(tan(toDegrees(arctan(adjY / adjX)) + rotation)^2 + 1.0)
-  
-  // I can maybe hack this to just use angle%90 to avoid quadrant stuff
   
   float adjX = mouseX - width/2 - logo.x;
   // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
-  // TODO: I'm not sure if this is correct with the %90
-  //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
+  // % 360 only for quadrant check, doesn't affect tan value
   double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
   int sign = 1;
@@ -397,7 +353,6 @@ public float adjMouseX() {
 }
 
 public float adjMouseY() {
-  
   // new_opp = (opp_1 * dist_0) / dist_1
   // new_opp = tan(theta_1) * dist_0 / sqrt(tan(theta_1)^2 + 1.0)
   
@@ -405,8 +360,7 @@ public float adjMouseY() {
   // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
-  // TODO: I'm not sure if this is correct with the %90
-  //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
+  // % 360 only for quadrant check, doesn't affect tan value
   double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
   int signX = 1;
