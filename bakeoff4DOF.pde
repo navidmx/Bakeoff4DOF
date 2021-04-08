@@ -38,7 +38,6 @@ private class Anchor {
   }
   
   public boolean underMouse() {
-    System.out.println(String.format("%.2f,%.2f,%.2f,%.2f,%.2f", this.x, this.y, this.z, adjMouseX(), adjMouseY()));
     return dist(this.x, this.y, adjMouseX(), adjMouseY()) < this.z;
   }
   
@@ -86,7 +85,6 @@ private class Logo {
   public void drawLogo() {
     pushMatrix();
     translate(width/2 + this.x, height/2 + this.y); // center the screen coords on the logo coords 
-    translate(this.x, this.y);
     rotate(radians(this.rotation));
     noStroke();
     fill(60, 60, 192, 192);
@@ -130,7 +128,12 @@ private class Logo {
   }
   
   public void resizeToMouse() {
-    this.z = dist(this.x, this.y, adjMouseX(), adjMouseY());
+    // dist_logo_center_to_mouse^2 = (z/2)^2 + (z/2)^2
+    // (dist_logo_center_to_mouse^2)/2 = (z/2)^2
+    // sqrt((dist_logo_center_to_mouse^2)/2) = z/2
+    // 2*sqrt((dist_logo_center_to_mouse^2)/2) = z
+    float diag_dist = dist(this.x, this.y, adjMouseX(), adjMouseY());
+    this.z = (float) (2 * Math.sqrt(Math.pow(diag_dist, 2) / 2.0));
   }
   
   public void rotateToMouse() {
