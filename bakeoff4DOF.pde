@@ -159,7 +159,8 @@ private class Logo {
     // tan(rotation) = adjMouseY / adjMouseX
     // rotation = arctan(adjMouseY / adjMouseX)
     // arctan returns radians, we assume degrees
-    this.rotation = (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()));
+    System.out.println(String.format("%.2f, %.2f, %.2f`, %.2f, %.2f", mouseX - width/2 - this.x, mouseY - height/2 - this.y, this.rotation, adjMouseX(), adjMouseY()));
+    this.rotation += (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX())) % 360;
   }
   
   public void updateFromMouse() {
@@ -302,6 +303,8 @@ void scaffoldControlLogic()
 
 void mousePressed()
 {
+  System.out.println(String.format("%.2f, %.2f, %.2f, %.2f", mouseX - width/2 - logo.x, mouseY - height/2 - logo.y, adjMouseX(), adjMouseY()));
+  
   if (startTime == 0) //start time on the instant of the first user click
   {
     startTime = millis();
@@ -347,6 +350,16 @@ void mouseReleased()
   logo.rotating = false;
 }
 
+// Quadrants
+//  2 | 1
+//  3 | 4
+//
+// degree representation is inverted
+//
+//    270
+//  180  0
+//    90
+
 public float adjMouseX() {
   // dist_0 = sqrt(opp_0^2 + adj_0^2)
   // tan(theta_0) = opp_0 / adj_0
@@ -368,13 +381,19 @@ public float adjMouseX() {
   // I can maybe hack this to just use angle%90 to avoid quadrant stuff
   
   float adjX = mouseX - width/2 - logo.x;
+  // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // TODO: I'm not sure if this is correct with the %90
   //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
-  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) + logo.rotation) % 90;
+  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
-  return (float) (dist_0 / Math.sqrt(Math.pow(Math.tan(Math.toRadians(theta_1)), 2) + 1.0));
+  int sign = 1;
+  if (90 <= theta_1 && theta_1 < 270) {
+    sign = -1;
+  }
+  
+  return (float) (dist_0 / Math.sqrt(Math.pow(Math.tan(Math.toRadians(theta_1)), 2) + 1.0)) * sign;
 }
 
 public float adjMouseY() {
@@ -383,13 +402,25 @@ public float adjMouseY() {
   // new_opp = tan(theta_1) * dist_0 / sqrt(tan(theta_1)^2 + 1.0)
   
   float adjX = mouseX - width/2 - logo.x;
+  // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // TODO: I'm not sure if this is correct with the %90
   //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
-  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) + logo.rotation) % 90;
+  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
-  return (float) (Math.tan(theta_1) * dist_0 / Math.sqrt(Math.pow(Math.tan(Math.toRadians(theta_1)), 2) + 1.0));
+  int signX = 1;
+  if (90 <= theta_1 && theta_1 < 270) {
+    signX = -1;
+  }
+  
+  int signY = 1;
+  // y-axis is inverted and degree representation is inverted, so quadrants 3 and 4 are negative
+  if (180 <= theta_1 && theta_1 < 360) {
+    signY = -1;
+  }
+  
+  return (float) Math.tan(Math.toRadians(theta_1)) * adjMouseX() * signX * signY;
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
