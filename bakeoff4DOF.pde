@@ -22,7 +22,15 @@ private class Anchor {
   float y = 0;
   float z = 10f;
   
+  public Anchor() { }
+  
   public Anchor(float x, float y, float z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+  
+  public void updateAll(float x, float y, float z) {
     this.x = x;
     this.y = y;
     this.z = z;
@@ -64,6 +72,15 @@ private class Logo {
   boolean rotating = false;
   
   public Logo() {
+    for (int i = 0; i < 4; i++) {
+      this.cornerAnchors[i] = new Anchor();
+      this.rotateAnchors[i] = new Anchor();
+    }
+    
+    this.updateAnchorPositions();
+  }
+  
+  public void updateAnchorPositions() {
     float anchorSize = this.z / 4f;
     float anchorShift = this.z / 2f;
     
@@ -71,15 +88,15 @@ private class Logo {
     
     this.centerAnchor = new Anchor(0, 0, anchorSize);
     
-    this.cornerAnchors[0] = new Anchor(-anchorShift, -anchorShift, anchorSize);
-    this.cornerAnchors[1] = new Anchor(anchorShift, -anchorShift, anchorSize);
-    this.cornerAnchors[2] = new Anchor(-anchorShift, anchorShift, anchorSize);
-    this.cornerAnchors[3] = new Anchor(anchorShift, anchorShift, anchorSize);
+    this.cornerAnchors[0].updateAll(-anchorShift, -anchorShift, anchorSize);
+    this.cornerAnchors[1].updateAll(anchorShift, -anchorShift, anchorSize);
+    this.cornerAnchors[2].updateAll(-anchorShift, anchorShift, anchorSize);
+    this.cornerAnchors[3].updateAll(anchorShift, anchorShift, anchorSize);
     
-    this.rotateAnchors[0] = new Anchor(0, -anchorShift * 1.5f, anchorSize);
-    this.rotateAnchors[1] = new Anchor(anchorShift * 1.5f, 0, anchorSize);
-    this.rotateAnchors[2] = new Anchor(0, anchorShift * 1.5f, anchorSize);
-    this.rotateAnchors[3] = new Anchor(-anchorShift * 1.5f, 0, anchorSize);
+    this.rotateAnchors[0].updateAll(0, -anchorShift * 1.5f, anchorSize);
+    this.rotateAnchors[1].updateAll(anchorShift * 1.5f, 0, anchorSize);
+    this.rotateAnchors[2].updateAll(0, anchorShift * 1.5f, anchorSize);
+    this.rotateAnchors[3].updateAll(-anchorShift * 1.5f, 0, anchorSize);
   }
   
   public void drawLogo() {
@@ -129,10 +146,10 @@ private class Logo {
   
   public void resizeToMouse() {
     // dist_logo_center_to_mouse^2 = (z/2)^2 + (z/2)^2
-    // (dist_logo_center_to_mouse^2)/2 = (z/2)^2
-    // sqrt((dist_logo_center_to_mouse^2)/2) = z/2
-    // 2*sqrt((dist_logo_center_to_mouse^2)/2) = z
-    float diag_dist = dist(this.x, this.y, adjMouseX(), adjMouseY());
+    // (dist_logo_center_to_mouse^2) / 2 = (z/2)^2
+    // sqrt((dist_logo_center_to_mouse^2) / 2) = z / 2
+    // 2 * sqrt((dist_logo_center_to_mouse^2) / 2) = z
+    float diag_dist = dist(0, 0, adjMouseX(), adjMouseY());
     this.z = (float) (2 * Math.sqrt(Math.pow(diag_dist, 2) / 2.0));
   }
   
@@ -143,9 +160,9 @@ private class Logo {
   public void updateFromMouse() {
     if (this.dragging) {
       this.moveToMouse();
-      //System.out.println(String.format("(%.2f,%.2f,%.2f)-(%.2f,%.2f,%.2f)", this.x, this.y, this.z, this.centerAnchor.x, this.centerAnchor.y, this.centerAnchor.z));
     } else if (this.resizing) {
       this.resizeToMouse();
+      this.updateAnchorPositions();
     } else if (this.rotating) {
       this.rotateToMouse();
     }
