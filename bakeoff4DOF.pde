@@ -151,10 +151,15 @@ private class Logo {
     // 2 * sqrt((dist_logo_center_to_mouse^2) / 2) = z
     float diag_dist = dist(0, 0, adjMouseX(), adjMouseY());
     this.z = (float) (2 * Math.sqrt(Math.pow(diag_dist, 2) / 2.0));
+    this.z = constrain(this.z, .01, inchToPix(4f));
   }
   
   public void rotateToMouse() {
-    return;
+    // tan(theta) = opposite / adjacent
+    // tan(rotation) = adjMouseY / adjMouseX
+    // rotation = arctan(adjMouseY / adjMouseX)
+    // arctan returns radians, we assume degrees
+    this.rotation = (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()));
   }
   
   public void updateFromMouse() {
