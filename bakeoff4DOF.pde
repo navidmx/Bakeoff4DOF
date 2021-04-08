@@ -348,11 +348,48 @@ void mouseReleased()
 }
 
 public float adjMouseX() {
-  return mouseX - width/2 - logo.x;
+  // dist_0 = sqrt(opp_0^2 + adj_0^2)
+  // tan(theta_0) = opp_0 / adj_0
+  // theta_0 = toDegrees(arctan(opp_0 / adj_0))
+  // theta_1 = theta_0 + rotation
+  // check quadrant of theta_1 (0,90)/(90,180)/(180,270)/(270,360)
+  //    to determine sign of new x and y
+  // tan(theta_1) = opp_1 / adj_1
+  // opp_1 = 1.0 * tan(theta_1)
+  // dist_1 = sqrt(opp_1^2 + 1.0^2) = sqrt(tan(theta_1)^2 + 1.0)
+  // opp_2 = (opp_1 / dist_1) * dist_0 = (opp_1 * dist_0) / dist_1
+  //    do the second version to avoid underflowing
+  // adj_2 = (1.0 / dist_1) * dist_0 = dist_0 / dist_1
+  
+  // new_adj = dist_0 / dist_1
+  // new_adj = sqrt(adjX^2 + adjY^2) / sqrt(tan(theta_1)^2 + 1.0)
+  // new_adj = sqrt(adjX^2 + adjY^2) / sqrt(tan(toDegrees(arctan(adjY / adjX)) + rotation)^2 + 1.0)
+  
+  // I can maybe hack this to just use angle%90 to avoid quadrant stuff
+  
+  float adjX = mouseX - width/2 - logo.x;
+  float adjY = mouseY - height/2 - logo.y;
+  double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
+  // TODO: I'm not sure if this is correct with the %90
+  //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
+  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) + logo.rotation) % 90;
+  
+  return (float) (dist_0 / Math.sqrt(Math.pow(Math.tan(Math.toRadians(theta_1)), 2) + 1.0));
 }
 
 public float adjMouseY() {
-  return mouseY - height/2 - logo.y;
+  
+  // new_opp = (opp_1 * dist_0) / dist_1
+  // new_opp = tan(theta_1) * dist_0 / sqrt(tan(theta_1)^2 + 1.0)
+  
+  float adjX = mouseX - width/2 - logo.x;
+  float adjY = mouseY - height/2 - logo.y;
+  double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
+  // TODO: I'm not sure if this is correct with the %90
+  //    If correct, theta_1 will always be in quadrant 1 with positive X and Y
+  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) + logo.rotation) % 90;
+  
+  return (float) (Math.tan(theta_1) * dist_0 / Math.sqrt(Math.pow(Math.tan(Math.toRadians(theta_1)), 2) + 1.0));
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
