@@ -15,6 +15,35 @@ boolean userDone = false; //is the user done
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
+private class SubmitButton {
+  float buttonWidth = inchToPix(1f);
+  float buttonHeight = inchToPix(.5f);
+  float x;
+  float y;
+  
+  public SubmitButton() {
+    x = width/2;
+    y = height - buttonHeight/2;
+  }
+  
+  public void drawButton() {
+    noStroke();
+    
+    fill(0,255,0);
+    rect(x, y, buttonWidth, buttonHeight);
+    
+    fill(0,0,0);
+    text("Submit", x, y);
+  }
+  
+  public boolean underMouse() {
+    return (x - buttonWidth/2 <= mouseX && mouseX <= x + buttonWidth/2)
+          && (y - buttonHeight/2 <= mouseY && mouseY <= y + buttonWidth/2);
+  }
+}
+
+SubmitButton submitButton;
+
 private class Anchor {
   float x = 0;
   float y = 0;
@@ -157,7 +186,6 @@ private class Logo {
     // tan(rotation) = adjMouseY / adjMouseX
     // rotation = arctan(adjMouseY / adjMouseX)
     // arctan returns radians, we assume degrees
-    System.out.println(String.format("%.2f, %.2f, %.2f', %.2f, %.2f, %.2f'", mouseX - width/2 - this.x, mouseY - height/2 - this.y, this.rotation, adjMouseX(), adjMouseY(), Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()))));
     
     // Want rotation to adjust to make mouse inline with axis
     // (i.e. diff between rotation and (mouseX-width/2-this.x, mouseY-height/2-this.y) goes to 0)
@@ -217,6 +245,8 @@ void setup() {
   }
 
   Collections.shuffle(destinations); // randomize the order of the button; don't change this.
+  
+  submitButton = new SubmitButton();
 }
 
 
@@ -255,21 +285,35 @@ void draw() {
     popMatrix();
   }
 
-  logo.updateFromMouse();
-
   //===========DRAW LOGO SQUARE=================
+  logo.updateFromMouse();
   logo.drawLogo();
+  
+  //===========DRAW SUBMIT BUTTON=================
+  submitButton.drawButton();
 
   //===========DRAW TRIAL INFO=================
   fill(255);
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
 }
 
+void mouseClicked() {
+  if (submitButton.underMouse()) {
+    if (userDone==false && !checkForSuccess())
+      errorCount++;
+
+    trialIndex++; //and move on to next trial
+
+    if (trialIndex==trialCount && userDone==false)
+    {
+      userDone = true;
+      finishTime = millis();
+    }
+  }
+}
 
 void mousePressed()
-{
-  System.out.println(String.format("%.2f, %.2f, %.2f, %.2f", mouseX - width/2 - logo.x, mouseY - height/2 - logo.y, adjMouseX(), adjMouseY()));
-  
+{  
   if (startTime == 0) //start time on the instant of the first user click
   {
     startTime = millis();
@@ -289,21 +333,6 @@ void mousePressed()
 
 void mouseReleased()
 {
-  //check to see if user clicked middle of screen within 3 inches, which this code uses as a submit button
-  //if (dist(width/2, height/2, mouseX, mouseY)<inchToPix(3f))
-  //{
-  //  if (userDone==false && !checkForSuccess())
-  //    errorCount++;
-
-  //  trialIndex++; //and move on to next trial
-
-  //  if (trialIndex==trialCount && userDone==false)
-  //  {
-  //    userDone = true;
-  //    finishTime = millis();
-  //  }
-  //}
-  
   logo.dragging = false;
   logo.resizing = false;
   logo.rotating = false;
