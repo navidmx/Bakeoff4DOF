@@ -45,16 +45,31 @@ private class SubmitButton {
 SubmitButton submitButton;
 
 private class Anchor {
+  int id = -1;
   float x = 0;
   float y = 0;
   float z = 10f;
   
-  public Anchor() { }
+  // These are the absolute coords, not relative to the logo center
+  float absX = 0;
+  float absY = 0;
   
-  public Anchor(float x, float y, float z) {
+  public Anchor(int id) {
+    this.id = id;
+  }
+  
+  // Assumes logo starts in center of screen
+  public Anchor(int id, float x, float y, float z) {
+    this.id = id;
     this.x = x;
+    this.absX = width/2 + x;
     this.y = y;
+    this.absY = height/2 + y;
     this.z = z;
+  }
+  
+  public int getId() {
+    return this.id;
   }
   
   public void updateAll(float x, float y, float z) {
@@ -70,6 +85,11 @@ private class Anchor {
   
   public void updateSize(float z) {
     this.z = z;
+  }
+  
+  public void updateAbsPosition(float x, float y) {
+    this.absX = x;
+    this.absY = y;
   }
   
   public boolean underMouse() {
@@ -93,15 +113,20 @@ private class Logo {
   Anchor centerAnchor;
   Anchor[] cornerAnchors = new Anchor[4];
   Anchor[] rotateAnchors = new Anchor[4];
+  Anchor prevActiveCornerAnchor = null;
+  Anchor currActiveCornerAnchor = null;
   
   boolean dragging = false;
   boolean resizing = false;
   boolean rotating = false;
+  boolean grabbingCorner = false;
   
   public Logo() {
+    this.centerAnchor = new Anchor(0);
+    
     for (int i = 0; i < 4; i++) {
-      this.cornerAnchors[i] = new Anchor();
-      this.rotateAnchors[i] = new Anchor();
+      this.cornerAnchors[i] = new Anchor(i);
+      this.rotateAnchors[i] = new Anchor(i);
     }
     
     this.updateAnchorPositions();
@@ -113,7 +138,7 @@ private class Logo {
     
     // Anchor coordinates should be relative to Logo's center
     
-    this.centerAnchor = new Anchor(0, 0, anchorSize);
+    this.centerAnchor.updateAll(0, 0, anchorSize);
     
     this.cornerAnchors[0].updateAll(-anchorShift, -anchorShift, anchorSize);
     this.cornerAnchors[1].updateAll(anchorShift, -anchorShift, anchorSize);
@@ -153,6 +178,44 @@ private class Logo {
       b = b || this.cornerAnchors[i].underMouse();
     }
     return b;
+  }
+  
+  public void updateActiveCornerAnchor() {
+    // At this point, curr- and prev-ActiveCornerAnchors have correct absX/absY values,
+    // but the other 2 anchors have invalid absX/absY, so the new curr- needs to be updated
+    for (int i = 0; i < 4; i++) {
+      if (this.cornerAnchors[i].underMouse() && this.cornerAnchors[i] != this.currActiveCornerAnchor) {
+        if (this.currActiveCornerAnchor != null) {
+          this.prevActiveCornerAnchor = this.currActiveCornerAnchor;
+        } else {
+          // This should only get called once when first starting
+          this.prevActiveCornerAnchor = this.cornerAnchors[(i-1)%4];
+          this.currActiveCornerAnchor = this.prevActiveCornerAnchor;
+        }
+        
+        float deltaRelativeX, deltaRelativeY, absX, absY;
+        deltaRelativeX = this.currActiveCornerAnchor.x - this.cornerAnchors[i].x;
+        deltaRelativeY = this.currActiveCornerAnchor.y - this.cornerAnchors[i].y;
+        // cos(rotation) = (newAbsX - oldAbsX) / deltaX
+        absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + this.currActiveCornerAnchor.absX);
+        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + this.currActiveCornerAnchor.absY);
+        this.cornerAnchors[i].updateAbsPosition(absX, absY);
+        
+        this.currActiveCornerAnchor = this.cornerAnchors[i];
+      }
+    }
+  }
+  
+  public void moveCornerToMouse() {
+    float currX, currY, prevX, prevY;
+    currX = mouseX;
+    currY = mouseY;
+    prevX = this.prevActiveCornerAnchor.absX;
+    prevY = this.prevActiveCornerAnchor.absY;
+    
+    this.currActiveCornerAnchor.updateAbsPosition(currX, currY); 
+    this.z = (float) Math.sqrt(Math.pow(currX - prevX, 2) + Math.pow(currY - prevY, 2));
+    this.rotation = (float) Math.toDegrees(Math.atan((currX - prevX) / (currY - prevY))); 
   }
   
   public boolean mouseOverRotate() {
@@ -199,6 +262,11 @@ private class Logo {
   }
   
   public void updateFromMouse() {
+    if (this.grabbingCorner) {
+      this.updateActiveCornerAnchor();
+      this.moveCornerToMouse();
+    }
+    
     if (this.dragging) {
       this.moveToMouse();
     } else if (this.resizing) {
@@ -321,18 +389,22 @@ void mousePressed()
   }
   
   // If user is pressing close to center of Logo
-  if (logo.mouseOverCenter()) {
-    logo.dragging = true;
-  } else if (logo.mouseOverCorner()) {
-    logo.resizing = true;
-  } else if (logo.mouseOverRotate()) {
-    logo.rotating = true;
+  if (logo.mouseOverCorner()) {
+    logo.grabbingCorner = true;
   }
+  //if (logo.mouseOverCenter()) {
+  //  logo.dragging = true;
+  //} else if (logo.mouseOverCorner()) {
+  //  logo.resizing = true;
+  //} else if (logo.mouseOverRotate()) {
+  //  logo.rotating = true;
+  //}
 }
 
 
 void mouseReleased()
 {
+  logo.grabbingCorner = false;
   logo.dragging = false;
   logo.resizing = false;
   logo.rotating = false;
