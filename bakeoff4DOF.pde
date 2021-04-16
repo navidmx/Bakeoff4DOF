@@ -142,8 +142,8 @@ private class Logo {
     
     this.cornerAnchors[0].updateAll(-anchorShift, -anchorShift, anchorSize);
     this.cornerAnchors[1].updateAll(anchorShift, -anchorShift, anchorSize);
-    this.cornerAnchors[2].updateAll(-anchorShift, anchorShift, anchorSize);
-    this.cornerAnchors[3].updateAll(anchorShift, anchorShift, anchorSize);
+    this.cornerAnchors[2].updateAll(anchorShift, anchorShift, anchorSize);
+    this.cornerAnchors[3].updateAll(-anchorShift, anchorShift, anchorSize);
     
     this.rotateAnchors[0].updateAll(0, -anchorShift * 1.5f, anchorSize);
     this.rotateAnchors[1].updateAll(anchorShift * 1.5f, 0, anchorSize);
@@ -207,15 +207,25 @@ private class Logo {
   }
   
   public void moveCornerToMouse() {
-    float currX, currY, prevX, prevY;
-    currX = mouseX;
-    currY = mouseY;
-    prevX = this.prevActiveCornerAnchor.absX;
-    prevY = this.prevActiveCornerAnchor.absY;
+    float currAbsX, currAbsY, prevAbsX, prevAbsY;
+    currAbsX = mouseX;
+    currAbsY = mouseY;
+    prevAbsX = this.prevActiveCornerAnchor.absX;
+    prevAbsY = this.prevActiveCornerAnchor.absY;
     
-    this.currActiveCornerAnchor.updateAbsPosition(currX, currY); 
-    this.z = (float) Math.sqrt(Math.pow(currX - prevX, 2) + Math.pow(currY - prevY, 2));
-    this.rotation = (float) Math.toDegrees(Math.atan((currX - prevX) / (currY - prevY))); 
+    this.currActiveCornerAnchor.updateAbsPosition(currAbsX, currAbsY); 
+    this.z = (float) Math.sqrt(Math.pow(currAbsX - prevAbsX, 2) + Math.pow(currAbsY - prevAbsY, 2));
+    this.rotation = (float) Math.toDegrees(Math.atan((currAbsX - prevAbsX) / (currAbsY - prevAbsY)));
+    
+    float currX, currY, prevX, prevY;
+    currX = this.currActiveCornerAnchor.x;
+    currY = this.currActiveCornerAnchor.y;
+    prevX = this.prevActiveCornerAnchor.x;
+    prevY = this.prevActiveCornerAnchor.y;
+    
+    float degreeOffset = 90 * this.currActiveCornerAnchor.getId() + 45 + this.rotation;
+    this.x = (float) (this.z / Math.sqrt(2) * Math.cos(Math.toRadians(degreeOffset)) + currAbsX - (width / 2));
+    this.y = (float) (this.z / Math.sqrt(2) * Math.sin(Math.toRadians(degreeOffset)) + currAbsY - (height / 2));
   }
   
   public boolean mouseOverRotate() {
@@ -265,6 +275,7 @@ private class Logo {
     if (this.grabbingCorner) {
       this.updateActiveCornerAnchor();
       this.moveCornerToMouse();
+      this.updateAnchorPositions();
     }
     
     if (this.dragging) {
