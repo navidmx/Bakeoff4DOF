@@ -58,16 +58,6 @@ private class Anchor {
     this.id = id;
   }
   
-  // Assumes logo starts in center of screen
-  public Anchor(int id, float x, float y, float z) {
-    this.id = id;
-    this.x = x;
-    this.absX = width/2 + x;
-    this.y = y;
-    this.absY = height/2 + y;
-    this.z = z;
-  }
-  
   public int getId() {
     return this.id;
   }
@@ -75,15 +65,6 @@ private class Anchor {
   public void updateAll(float x, float y, float z) {
     this.x = x;
     this.y = y;
-    this.z = z;
-  }
-  
-  public void updatePosition(float x, float y) {
-    this.x = x;
-    this.y = y;
-  }
-  
-  public void updateSize(float z) {
     this.z = z;
   }
   
@@ -110,24 +91,22 @@ private class Logo {
   float z = 50f;
   float rotation = 0;
   
-  Anchor centerAnchor;
   Anchor[] cornerAnchors = new Anchor[4];
-  Anchor[] rotateAnchors = new Anchor[4];
   Anchor prevActiveCornerAnchor = null;
   Anchor currActiveCornerAnchor = null;
-  
-  boolean dragging = false;
-  boolean resizing = false;
-  boolean rotating = false;
+
   boolean grabbingCorner = false;
   
   public Logo() {
-    this.centerAnchor = new Anchor(0);
-    
     for (int i = 0; i < 4; i++) {
       this.cornerAnchors[i] = new Anchor(i);
-      this.rotateAnchors[i] = new Anchor(i);
     }
+    
+    float anchorShift = this.z / 2f;
+    this.cornerAnchors[0].updateAbsPosition(width/2 - anchorShift, height/2 - anchorShift);
+    this.cornerAnchors[1].updateAbsPosition(width/2 + anchorShift, height/2 - anchorShift);
+    this.cornerAnchors[2].updateAbsPosition(width/2 + anchorShift, height/2 + anchorShift);
+    this.cornerAnchors[3].updateAbsPosition(width/2 - anchorShift, height/2 + anchorShift);
     
     this.updateAnchorPositions();
   }
@@ -138,17 +117,10 @@ private class Logo {
     
     // Anchor coordinates should be relative to Logo's center
     
-    this.centerAnchor.updateAll(0, 0, anchorSize);
-    
     this.cornerAnchors[0].updateAll(-anchorShift, -anchorShift, anchorSize);
     this.cornerAnchors[1].updateAll(anchorShift, -anchorShift, anchorSize);
     this.cornerAnchors[2].updateAll(anchorShift, anchorShift, anchorSize);
     this.cornerAnchors[3].updateAll(-anchorShift, anchorShift, anchorSize);
-    
-    this.rotateAnchors[0].updateAll(0, -anchorShift * 1.5f, anchorSize);
-    this.rotateAnchors[1].updateAll(anchorShift * 1.5f, 0, anchorSize);
-    this.rotateAnchors[2].updateAll(0, anchorShift * 1.5f, anchorSize);
-    this.rotateAnchors[3].updateAll(-anchorShift * 1.5f, 0, anchorSize);
   }
   
   public void drawLogo() {
@@ -159,17 +131,21 @@ private class Logo {
     fill(60, 60, 192, 192);
     rect(0, 0, this.z, this.z);
     
-    this.centerAnchor.drawAnchor();
     for (int i = 0; i < 4; i++) {
       this.cornerAnchors[i].drawAnchor();
-      this.rotateAnchors[i].drawAnchor();
     }
     
     popMatrix();
-  }
-  
-  public boolean mouseOverCenter() {
-    return this.centerAnchor.underMouse();
+    
+    if (this.prevActiveCornerAnchor != null) {
+      noStroke();
+      Anchor temp = this.prevActiveCornerAnchor;
+      fill(255, 0, 0);
+      circle(temp.absX, temp.absY, 10f);
+      temp = this.currActiveCornerAnchor;
+      fill(0, 255, 0);
+      circle(temp.absX, temp.absY, 10f);
+    }
   }
   
   public boolean mouseOverCorner() {
@@ -190,101 +166,60 @@ private class Logo {
         } else {
           // This should only get called once when first starting
           this.prevActiveCornerAnchor = this.cornerAnchors[(i-1)%4];
-          this.currActiveCornerAnchor = this.prevActiveCornerAnchor;
         }
         
-        float deltaRelativeX, deltaRelativeY, absX, absY;
-        deltaRelativeX = this.currActiveCornerAnchor.x - this.cornerAnchors[i].x;
-        deltaRelativeY = this.currActiveCornerAnchor.y - this.cornerAnchors[i].y;
-        // cos(rotation) = (newAbsX - oldAbsX) / deltaX
-        absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + this.currActiveCornerAnchor.absX);
-        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + this.currActiveCornerAnchor.absY);
-        this.cornerAnchors[i].updateAbsPosition(absX, absY);
-        
         this.currActiveCornerAnchor = this.cornerAnchors[i];
+        
+        float deltaRelativeX, deltaRelativeY, absX, absY;
+        deltaRelativeX = this.prevActiveCornerAnchor.x - this.currActiveCornerAnchor.x;
+        deltaRelativeY = this.prevActiveCornerAnchor.y - this.currActiveCornerAnchor.y;
+        // cos(rotation) = (newAbsX - oldAbsX) / deltaX
+        absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + this.prevActiveCornerAnchor.absX);
+        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + this.prevActiveCornerAnchor.absY);
+        
+        this.currActiveCornerAnchor.updateAbsPosition(absX, absY);
       }
     }
   }
   
   public void moveCornerToMouse() {
-    float currAbsX, currAbsY, prevAbsX, prevAbsY;
+    float currAbsX, currAbsY, prevAbsX, prevAbsY, deltaAbsX, deltaAbsY;
     currAbsX = mouseX;
     currAbsY = mouseY;
     prevAbsX = this.prevActiveCornerAnchor.absX;
     prevAbsY = this.prevActiveCornerAnchor.absY;
+    deltaAbsX = (currAbsX - prevAbsX) != 0 ? currAbsX - prevAbsX : 0.00001;
+    deltaAbsY = currAbsY - prevAbsY;
     
-    this.currActiveCornerAnchor.updateAbsPosition(currAbsX, currAbsY); 
-    this.z = (float) Math.sqrt(Math.pow(currAbsX - prevAbsX, 2) + Math.pow(currAbsY - prevAbsY, 2));
-    this.rotation = (float) Math.toDegrees(Math.atan((currAbsX - prevAbsX) / (currAbsY - prevAbsY)));
+    int currId, prevId;
+    currId = this.currActiveCornerAnchor.getId();
+    prevId = this.prevActiveCornerAnchor.getId();
     
-    float currX, currY, prevX, prevY;
-    currX = this.currActiveCornerAnchor.x;
-    currY = this.currActiveCornerAnchor.y;
-    prevX = this.prevActiveCornerAnchor.x;
-    prevY = this.prevActiveCornerAnchor.y;
+    this.currActiveCornerAnchor.updateAbsPosition(currAbsX, currAbsY);
     
-    float degreeOffset = 90 * this.currActiveCornerAnchor.getId() + 45 + this.rotation;
+    this.z = (float) (Math.sqrt(Math.pow(deltaAbsX, 2) + Math.pow(deltaAbsY, 2)) / (((currId - prevId) % 2 == 1) ? 1.0 : Math.sqrt(2)));
+  
+    float quadrantOffset = ((currAbsX - prevAbsX) < 0 ? 1 : 0) * 180;
+    float relativeRotation = (float) Math.toDegrees(Math.atan(deltaAbsY / deltaAbsX));
+    float originalRelativeRotation = (prevId * 90) + (((currId - prevId - 1) % 4) * 45);
+    
+    this.rotation = quadrantOffset + relativeRotation - originalRelativeRotation;
+    
+    
+    float degreeOffset = (currId * 90) + this.rotation + 45;
     this.x = (float) (this.z / Math.sqrt(2) * Math.cos(Math.toRadians(degreeOffset)) + currAbsX - (width / 2));
     this.y = (float) (this.z / Math.sqrt(2) * Math.sin(Math.toRadians(degreeOffset)) + currAbsY - (height / 2));
-  }
-  
-  public boolean mouseOverRotate() {
-    boolean b = false;
-    for (int i = 0; i < 4; i++) {
-      b = b || this.rotateAnchors[i].underMouse();
-    }
-    return b;
-  }
-  
-  public void moveToMouse() {
-    // This doesn't use adjMouseX because otherwise wouldn't move
-    // Just adjusts mouse coords repective to center of screen
-    // Uses "absolute" positioning (from center)
-    this.x = mouseX - width/2;
-    this.y = mouseY - height/2;
-  }
-  
-  public void resizeToMouse() {
-    // dist_logo_center_to_mouse^2 = (z/2)^2 + (z/2)^2
-    // (dist_logo_center_to_mouse^2) / 2 = (z/2)^2
-    // sqrt((dist_logo_center_to_mouse^2) / 2) = z / 2
-    // 2 * sqrt((dist_logo_center_to_mouse^2) / 2) = z
-    float diag_dist = dist(0, 0, adjMouseX(), adjMouseY());
-    this.z = (float) (2 * Math.sqrt(Math.pow(diag_dist, 2) / 2.0));
-    this.z = constrain(this.z, .01, inchToPix(4f));
-  }
-  
-  public void rotateToMouse() {
-    // tan(theta) = opposite / adjacent
-    // tan(rotation) = adjMouseY / adjMouseX
-    // rotation = arctan(adjMouseY / adjMouseX)
-    // arctan returns radians, we assume degrees
     
-    // Want rotation to adjust to make mouse inline with axis
-    // (i.e. diff between rotation and (mouseX-width/2-this.x, mouseY-height/2-this.y) goes to 0)
-    // Also makes adjMouseY go to 0 and adjMouseX is dist(0,0,mouseX-width/2-this.x, mouseY-height/2-this.y)
-    this.rotation += (float) Math.toDegrees(Math.atan(adjMouseY() / adjMouseX()));
-    
-    // Glitch happens when adjMouseY becomes large relative to adjMouseX
-    // Program is trying to keep adjMouseY low, so makes big jump in this scenario
-    // This happens when crossing an axis boundary
-    // More work needs to be done to figure out the specifics, but it isn't too problematic
+    System.out.println(String.format("oX: %.2f, oY: %.2f, rot: %.2f, prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f, currId: %d, currAbsX: %.2f, currAbsY: %.2f",
+                                    this.x, this.y, this.rotation,
+                                    this.prevActiveCornerAnchor.getId(), this.prevActiveCornerAnchor.absX, this.prevActiveCornerAnchor.absY,
+                                    this.currActiveCornerAnchor.getId(), this.currActiveCornerAnchor.absX, this.currActiveCornerAnchor.absY));
   }
   
   public void updateFromMouse() {
     if (this.grabbingCorner) {
-      this.updateActiveCornerAnchor();
       this.moveCornerToMouse();
       this.updateAnchorPositions();
-    }
-    
-    if (this.dragging) {
-      this.moveToMouse();
-    } else if (this.resizing) {
-      this.resizeToMouse();
-      this.updateAnchorPositions();
-    } else if (this.rotating) {
-      this.rotateToMouse();
     }
   }
 }
@@ -299,7 +234,7 @@ private class Destination
 
 ArrayList<Destination> destinations = new ArrayList<Destination>();
 
-Logo logo = new Logo();
+Logo logo;
 
 void setup() {
   size(1000, 800);  
@@ -326,6 +261,7 @@ void setup() {
   Collections.shuffle(destinations); // randomize the order of the button; don't change this.
   
   submitButton = new SubmitButton();
+  logo = new Logo();
 }
 
 
@@ -402,23 +338,14 @@ void mousePressed()
   // If user is pressing close to center of Logo
   if (logo.mouseOverCorner()) {
     logo.grabbingCorner = true;
+    logo.updateActiveCornerAnchor();
   }
-  //if (logo.mouseOverCenter()) {
-  //  logo.dragging = true;
-  //} else if (logo.mouseOverCorner()) {
-  //  logo.resizing = true;
-  //} else if (logo.mouseOverRotate()) {
-  //  logo.rotating = true;
-  //}
 }
 
 
 void mouseReleased()
 {
   logo.grabbingCorner = false;
-  logo.dragging = false;
-  logo.resizing = false;
-  logo.rotating = false;
 }
 
 // Quadrants
