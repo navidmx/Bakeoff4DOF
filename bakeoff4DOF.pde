@@ -12,6 +12,8 @@ int startTime = 0; // time starts when the first click is captured
 int finishTime = 0; //records the time of the final click
 boolean userDone = false; //is the user done
 
+boolean printMessage = false;
+
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
@@ -92,8 +94,8 @@ private class Logo {
   float rotation = 0;
   
   Anchor[] cornerAnchors = new Anchor[4];
-  Anchor prevActiveCornerAnchor = null;
-  Anchor currActiveCornerAnchor = null;
+  int prevActiveCornerAnchorId = -1;
+  int currActiveCornerAnchorId = -1;
 
   boolean grabbingCorner = false;
   
@@ -137,12 +139,12 @@ private class Logo {
     
     popMatrix();
     
-    if (this.prevActiveCornerAnchor != null) {
+    if (this.prevActiveCornerAnchorId != -1) {
       noStroke();
-      Anchor temp = this.prevActiveCornerAnchor;
+      Anchor temp = this.cornerAnchors[this.prevActiveCornerAnchorId];
       fill(255, 0, 0);
       circle(temp.absX, temp.absY, 10f);
-      temp = this.currActiveCornerAnchor;
+      temp = this.cornerAnchors[this.currActiveCornerAnchorId];
       fill(0, 255, 0);
       circle(temp.absX, temp.absY, 10f);
     }
@@ -160,42 +162,48 @@ private class Logo {
     // At this point, curr- and prev-ActiveCornerAnchors have correct absX/absY values,
     // but the other 2 anchors have invalid absX/absY, so the new curr- needs to be updated
     for (int i = 0; i < 4; i++) {
-      if (this.cornerAnchors[i].underMouse() && this.cornerAnchors[i] != this.currActiveCornerAnchor) {
-        if (this.currActiveCornerAnchor != null) {
-          this.prevActiveCornerAnchor = this.currActiveCornerAnchor;
+      if (this.cornerAnchors[i].underMouse() && i != this.currActiveCornerAnchorId) {
+        if (this.currActiveCornerAnchorId != -1) {
+          this.prevActiveCornerAnchorId = this.currActiveCornerAnchorId;
         } else {
           // This should only get called once when first starting
-          this.prevActiveCornerAnchor = this.cornerAnchors[(i-1)%4];
+          this.prevActiveCornerAnchorId = (i-1) % 4;
         }
         
-        this.currActiveCornerAnchor = this.cornerAnchors[i];
+        this.currActiveCornerAnchorId = i;
+        
+        Anchor prevAnchor = this.cornerAnchors[this.prevActiveCornerAnchorId];
+        Anchor currAnchor = this.cornerAnchors[this.currActiveCornerAnchorId];
         
         float deltaRelativeX, deltaRelativeY, absX, absY;
-        deltaRelativeX = this.prevActiveCornerAnchor.x - this.currActiveCornerAnchor.x;
-        deltaRelativeY = this.prevActiveCornerAnchor.y - this.currActiveCornerAnchor.y;
+        deltaRelativeX = prevAnchor.x - currAnchor.x;
+        deltaRelativeY = prevAnchor.y - currAnchor.y;
         // cos(rotation) = (newAbsX - oldAbsX) / deltaX
-        absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + this.prevActiveCornerAnchor.absX);
-        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + this.prevActiveCornerAnchor.absY);
+        absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + prevAnchor.absX);
+        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + prevAnchor.absY);
         
-        this.currActiveCornerAnchor.updateAbsPosition(absX, absY);
+        currAnchor.updateAbsPosition(absX, absY);
       }
     }
   }
   
   public void moveCornerToMouse() {
+    int prevId, currId;
+    prevId = this.prevActiveCornerAnchorId;
+    currId = this.currActiveCornerAnchorId;
+    
+    Anchor prevAnchor = this.cornerAnchors[prevId];
+    Anchor currAnchor = this.cornerAnchors[currId];
+    
     float currAbsX, currAbsY, prevAbsX, prevAbsY, deltaAbsX, deltaAbsY;
     currAbsX = mouseX;
     currAbsY = mouseY;
-    prevAbsX = this.prevActiveCornerAnchor.absX;
-    prevAbsY = this.prevActiveCornerAnchor.absY;
+    prevAbsX = prevAnchor.absX;
+    prevAbsY = prevAnchor.absY;
     deltaAbsX = (currAbsX - prevAbsX) != 0 ? currAbsX - prevAbsX : 0.00001;
     deltaAbsY = currAbsY - prevAbsY;
     
-    int currId, prevId;
-    currId = this.currActiveCornerAnchor.getId();
-    prevId = this.prevActiveCornerAnchor.getId();
-    
-    this.currActiveCornerAnchor.updateAbsPosition(currAbsX, currAbsY);
+    currAnchor.updateAbsPosition(currAbsX, currAbsY);
     
     this.z = (float) (Math.sqrt(Math.pow(deltaAbsX, 2) + Math.pow(deltaAbsY, 2)) / (((currId - prevId) % 2 == 1) ? 1.0 : Math.sqrt(2)));
   
@@ -210,10 +218,13 @@ private class Logo {
     this.x = (float) (this.z / Math.sqrt(2) * Math.cos(Math.toRadians(degreeOffset)) + currAbsX - (width / 2));
     this.y = (float) (this.z / Math.sqrt(2) * Math.sin(Math.toRadians(degreeOffset)) + currAbsY - (height / 2));
     
-    System.out.println(String.format("oX: %.2f, oY: %.2f, rot: %.2f, prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f, currId: %d, currAbsX: %.2f, currAbsY: %.2f",
-                                    this.x, this.y, this.rotation,
-                                    this.prevActiveCornerAnchor.getId(), this.prevActiveCornerAnchor.absX, this.prevActiveCornerAnchor.absY,
-                                    this.currActiveCornerAnchor.getId(), this.currActiveCornerAnchor.absX, this.currActiveCornerAnchor.absY));
+    if (printMessage) {
+      System.out.println(String.format("oX: %.2f, oY: %.2f, rot: %.2f, prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f, currId: %d, currAbsX: %.2f, currAbsY: %.2f",
+                                      this.x, this.y, this.rotation,
+                                      prevId, prevAbsX, prevAbsY,
+                                      currId, currAbsX, currAbsY));
+      printMessage = false;
+    }
   }
   
   public void updateFromMouse() {
@@ -313,6 +324,8 @@ void draw() {
 }
 
 void mouseClicked() {
+  printMessage = true;
+  
   if (submitButton.underMouse()) {
     if (userDone==false && !checkForSuccess())
       errorCount++;
@@ -335,11 +348,16 @@ void mousePressed()
     println("time started!");
   }
   
+  System.out.println(String.format("Mouse clicked (adj): (%.2f, %.2f)", adjMouseX(), adjMouseY()));
   // If user is pressing close to center of Logo
   if (logo.mouseOverCorner()) {
     logo.grabbingCorner = true;
     logo.updateActiveCornerAnchor();
   }
+}
+
+void mouseDragged() {
+  printMessage = true;
 }
 
 
@@ -377,11 +395,12 @@ public float adjMouseX() {
   // new_adj = sqrt(adjX^2 + adjY^2) / sqrt(tan(toDegrees(arctan(adjY / adjX)) + rotation)^2 + 1.0)
   
   float adjX = mouseX - width/2 - logo.x;
+  adjX = (adjX == 0) ? 0.00001 : adjX;
   // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // % 360 only for quadrant check, doesn't affect tan value
-  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
+  double theta_1 = ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
   int sign = 1;
   if (90 <= theta_1 && theta_1 < 270) {
@@ -394,26 +413,17 @@ public float adjMouseX() {
 public float adjMouseY() {
   // new_opp = (opp_1 * dist_0) / dist_1
   // new_opp = tan(theta_1) * dist_0 / sqrt(tan(theta_1)^2 + 1.0)
+  // new_opp = tan(theta_1) * adjMouseX
   
   float adjX = mouseX - width/2 - logo.x;
+  adjX = (adjX == 0) ? 0.00001 : adjX;
   // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // % 360 only for quadrant check, doesn't affect tan value
-  double theta_1 = (Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
+  double theta_1 = ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
   
-  int signX = 1;
-  if (90 <= theta_1 && theta_1 < 270) {
-    signX = -1;
-  }
-  
-  int signY = 1;
-  // y-axis is inverted and degree representation is inverted, so quadrants 3 and 4 are negative
-  if (180 <= theta_1 && theta_1 < 360) {
-    signY = -1;
-  }
-  
-  return (float) Math.tan(Math.toRadians(theta_1)) * adjMouseX() * signX * signY;
+  return (float) Math.tan(Math.toRadians(theta_1)) * adjMouseX();
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
