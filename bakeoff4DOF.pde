@@ -45,7 +45,6 @@ private class SubmitButton {
 SubmitButton submitButton;
 
 private class Anchor {
-  int id = -1;
   float x = 0;
   float y = 0;
   float z = 10f;
@@ -53,10 +52,6 @@ private class Anchor {
   // These are the absolute coords, not relative to the logo center
   float absX = 0;
   float absY = 0;
-  
-  public Anchor(int id) {
-    this.id = id;
-  }
   
   public void updateAll(float x, float y, float z) {
     this.x = x;
@@ -95,7 +90,7 @@ private class Logo {
   
   public Logo() {
     for (int i = 0; i < 4; i++) {
-      this.cornerAnchors[i] = new Anchor(i);
+      this.cornerAnchors[i] = new Anchor();
     }
     
     float anchorShift = this.z / 2f;
@@ -124,7 +119,10 @@ private class Logo {
     translate(width/2 + this.x, height/2 + this.y); // center the screen coords on the logo coords 
     rotate(radians(this.rotation));
     noStroke();
-    fill(60, 60, 192, 192);
+    if (checkForSuccess(false))
+      fill(60, 192, 60, 192);
+    else
+      fill(60, 60, 192, 192);
     rect(0, 0, this.z, this.z);
     
     for (int i = 0; i < 4; i++) {
@@ -312,7 +310,7 @@ void draw() {
 
 void mouseClicked() {  
   if (submitButton.underMouse()) {
-    if (userDone==false && !checkForSuccess())
+    if (userDone==false && !checkForSuccess(true))
       errorCount++;
 
     trialIndex++; //and move on to next trial
@@ -398,7 +396,6 @@ public float adjMouseY() {
   adjX = (adjX == 0) ? 0.00001 : adjX;
   // y-axis is inverted
   float adjY = mouseY - height/2 - logo.y;
-  double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // % 360 only for quadrant check, doesn't affect tan value
   double theta_1 = Math.floorMod((int) ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation), 360);
   
@@ -406,17 +403,19 @@ public float adjMouseY() {
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
-public boolean checkForSuccess()
+public boolean checkForSuccess(boolean printMessage)
 {
   Destination d = destinations.get(trialIndex);	
   boolean closeDist = dist(d.x, d.y, logo.x, logo.y)<inchToPix(.05f); //has to be within +-0.05"
   boolean closeRotation = calculateDifferenceBetweenAngles(d.rotation, logo.rotation)<=5;
   boolean closeZ = abs(d.z - logo.z)<inchToPix(.05f); //has to be within +-0.05"	
 
-  println("Close Enough Distance: " + closeDist + " (logo X/Y = " + d.x + "/" + d.y + ", destination X/Y = " + logo.x + "/" + logo.y +")");
-  println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(d.rotation, logo.rotation)+")");
-  println("Close Enough Z: " +  closeZ + " (logo Z = " + d.z + ", destination Z = " + logo.z +")");
-  println("Close enough all: " + (closeDist && closeRotation && closeZ));
+  if (printMessage) {
+    println("Close Enough Distance: " + closeDist + " (logo X/Y = " + d.x + "/" + d.y + ", destination X/Y = " + logo.x + "/" + logo.y +")");
+    println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(d.rotation, logo.rotation)+")");
+    println("Close Enough Z: " +  closeZ + " (logo Z = " + d.z + ", destination Z = " + logo.z +")");
+    println("Close enough all: " + (closeDist && closeRotation && closeZ));
+  }
 
   return closeDist && closeRotation && closeZ;
 }
