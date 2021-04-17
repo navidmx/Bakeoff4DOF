@@ -167,7 +167,7 @@ private class Logo {
           this.prevActiveCornerAnchorId = this.currActiveCornerAnchorId;
         } else {
           // This should only get called once when first starting
-          this.prevActiveCornerAnchorId = (i-1) % 4;
+          this.prevActiveCornerAnchorId = Math.floorMod(i-1, 4);
         }
         
         this.currActiveCornerAnchorId = i;
@@ -180,7 +180,8 @@ private class Logo {
         deltaRelativeY = prevAnchor.y - currAnchor.y;
         // cos(rotation) = (newAbsX - oldAbsX) / deltaX
         absX = (float) (deltaRelativeX * Math.cos(Math.toRadians(logo.rotation)) + prevAnchor.absX);
-        absY = (float) (deltaRelativeY * Math.cos(Math.toRadians(logo.rotation)) + prevAnchor.absY);
+        // TODO: I previously had this as cos and I don't know if it was intentional
+        absY = (float) (deltaRelativeY * Math.sin(Math.toRadians(logo.rotation)) + prevAnchor.absY);
         
         currAnchor.updateAbsPosition(absX, absY);
       }
@@ -205,11 +206,11 @@ private class Logo {
     
     currAnchor.updateAbsPosition(currAbsX, currAbsY);
     
-    this.z = (float) (Math.sqrt(Math.pow(deltaAbsX, 2) + Math.pow(deltaAbsY, 2)) / (((currId - prevId) % 2 == 1) ? 1.0 : Math.sqrt(2)));
+    this.z = (float) (Math.sqrt(Math.pow(deltaAbsX, 2) + Math.pow(deltaAbsY, 2)) / ((Math.floorMod(currId - prevId, 2) == 1) ? 1.0 : Math.sqrt(2)));
   
-    float quadrantOffset = ((currAbsX - prevAbsX) < 0 ? 1 : 0) * 180;
+    float quadrantOffset = deltaAbsX < 0 ? 180 : 0;
     float relativeRotation = (float) Math.toDegrees(Math.atan(deltaAbsY / deltaAbsX));
-    float originalRelativeRotation = (prevId * 90) + (((currId - prevId - 1) % 4) * 45);
+    float originalRelativeRotation = (prevId * 90) + (Math.floorMod(currId - prevId - 1, 4) * 45);
     
     this.rotation = quadrantOffset + relativeRotation - originalRelativeRotation;
     
@@ -219,10 +220,14 @@ private class Logo {
     this.y = (float) (this.z / Math.sqrt(2) * Math.sin(Math.toRadians(degreeOffset)) + currAbsY - (height / 2));
     
     if (printMessage) {
-      System.out.println(String.format("oX: %.2f, oY: %.2f, rot: %.2f, prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f, currId: %d, currAbsX: %.2f, currAbsY: %.2f",
-                                      this.x, this.y, this.rotation,
+      System.out.println(String.format("x: %.2f, y: %.2f, z: %.2f, rot: %.2f\n" +
+                                       "  prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f\n" +
+                                       "  currId: %d, currAbsX: %.2f, currAbsY: %.2f\n" +
+                                       "  deltaAbsX: %.2f, deltaAbsY: %.2f",
+                                      this.x, this.y, this.z, this.rotation,
                                       prevId, prevAbsX, prevAbsY,
-                                      currId, currAbsX, currAbsY));
+                                      currId, currAbsX, currAbsY,
+                                      deltaAbsX, deltaAbsY));
       printMessage = false;
     }
   }
@@ -323,9 +328,7 @@ void draw() {
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
 }
 
-void mouseClicked() {
-  printMessage = true;
-  
+void mouseClicked() {  
   if (submitButton.underMouse()) {
     if (userDone==false && !checkForSuccess())
       errorCount++;
@@ -352,6 +355,7 @@ void mousePressed()
   // If user is pressing close to center of Logo
   if (logo.mouseOverCorner()) {
     logo.grabbingCorner = true;
+    printMessage = true;
     logo.updateActiveCornerAnchor();
   }
 }
@@ -400,7 +404,7 @@ public float adjMouseX() {
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // % 360 only for quadrant check, doesn't affect tan value
-  double theta_1 = ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
+  double theta_1 = Math.floorMod((int) ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation), 360);
   
   int sign = 1;
   if (90 <= theta_1 && theta_1 < 270) {
@@ -421,7 +425,7 @@ public float adjMouseY() {
   float adjY = mouseY - height/2 - logo.y;
   double dist_0 = Math.sqrt(Math.pow(adjX, 2) + Math.pow(adjY, 2));
   // % 360 only for quadrant check, doesn't affect tan value
-  double theta_1 = ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation) % 360;
+  double theta_1 = Math.floorMod((int) ((adjX < 0 ? 180 : 0) + Math.toDegrees(Math.atan(adjY / adjX)) - logo.rotation), 360);
   
   return (float) Math.tan(Math.toRadians(theta_1)) * adjMouseX();
 }
