@@ -12,8 +12,6 @@ int startTime = 0; // time starts when the first click is captured
 int finishTime = 0; //records the time of the final click
 boolean userDone = false; //is the user done
 
-boolean printMessage = false;
-
 final int screenPPI = 72; //what is the DPI of the screen you are using
 //you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
 
@@ -58,10 +56,6 @@ private class Anchor {
   
   public Anchor(int id) {
     this.id = id;
-  }
-  
-  public int getId() {
-    return this.id;
   }
   
   public void updateAll(float x, float y, float z) {
@@ -218,18 +212,6 @@ private class Logo {
     float degreeOffset = (currId * 90) + this.rotation + 45;
     this.x = (float) (this.z / Math.sqrt(2) * Math.cos(Math.toRadians(degreeOffset)) + currAbsX - (width / 2));
     this.y = (float) (this.z / Math.sqrt(2) * Math.sin(Math.toRadians(degreeOffset)) + currAbsY - (height / 2));
-    
-    if (printMessage) {
-      System.out.println(String.format("x: %.2f, y: %.2f, z: %.2f, rot: %.2f\n" +
-                                       "  prevId: %d, prevAbsX: %.2f, prevAbsY: %.2f\n" +
-                                       "  currId: %d, currAbsX: %.2f, currAbsY: %.2f\n" +
-                                       "  deltaAbsX: %.2f, deltaAbsY: %.2f",
-                                      this.x, this.y, this.z, this.rotation,
-                                      prevId, prevAbsX, prevAbsY,
-                                      currId, currAbsX, currAbsY,
-                                      deltaAbsX, deltaAbsY));
-      printMessage = false;
-    }
   }
   
   public void updateFromMouse() {
@@ -351,19 +333,12 @@ void mousePressed()
     println("time started!");
   }
   
-  System.out.println(String.format("Mouse clicked (adj): (%.2f, %.2f)", adjMouseX(), adjMouseY()));
   // If user is pressing close to center of Logo
   if (logo.mouseOverCorner()) {
     logo.grabbingCorner = true;
-    printMessage = true;
     logo.updateActiveCornerAnchor();
   }
 }
-
-void mouseDragged() {
-  printMessage = true;
-}
-
 
 void mouseReleased()
 {
