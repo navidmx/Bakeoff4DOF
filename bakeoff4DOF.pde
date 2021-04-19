@@ -13,41 +13,15 @@ int finishTime = 0; //records the time of the final click
 boolean userDone = false; //is the user done
 
 final int screenPPI = 72; //what is the DPI of the screen you are using
-//you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch. 
+//you can test this by drawing a 72x72 pixel rectangle in code, and then confirming with a ruler it is 1x1 inch.
 
-private class SubmitButton {
-  float buttonWidth = inchToPix(1f);
-  float buttonHeight = inchToPix(.5f);
-  float x;
-  float y;
-  
-  public SubmitButton() {
-    x = width/2;
-    y = height - buttonHeight/2;
-  }
-  
-  public void drawButton() {
-    noStroke();
-    
-    fill(0,255,0);
-    rect(x, y, buttonWidth, buttonHeight);
-    
-    fill(0,0,0);
-    text("Submit", x, y);
-  }
-  
-  public boolean underMouse() {
-    return (x - buttonWidth/2 <= mouseX && mouseX <= x + buttonWidth/2)
-          && (y - buttonHeight/2 <= mouseY && mouseY <= y + buttonWidth/2);
-  }
-}
-
-SubmitButton submitButton;
+float doubleClickTimeInterval = 500;
 
 private class Anchor {
   float x = 0;
   float y = 0;
   float z = 10f;
+  boolean active = false;
   
   // These are the absolute coords, not relative to the logo center
   float absX = 0;
@@ -65,7 +39,7 @@ private class Anchor {
   }
   
   public boolean underMouse() {
-    return dist(this.x, this.y, adjMouseX(), adjMouseY()) < this.z;
+    return dist(this.x, this.y, adjMouseX(), adjMouseY()) < this.z / 2.0;
   }
   
   // Assume coordinates have been translated by caller
@@ -73,6 +47,10 @@ private class Anchor {
     noStroke();
     fill(192, 192, 60, 100);
     circle(this.x, this.y, this.z);
+    if (this.active) {
+      fill(255, 255, 255, 50);
+      circle(this.x, this.y, this.z / 10.0);
+    }
   }
 }
 
@@ -81,6 +59,7 @@ private class Logo {
   float y = 0;
   float z = 50f;
   float rotation = 0;
+  float lastClickedTime = 0;
   
   Anchor[] cornerAnchors = new Anchor[4];
   int prevActiveCornerAnchorId = -1;
@@ -130,16 +109,6 @@ private class Logo {
     }
     
     popMatrix();
-    
-    if (this.prevActiveCornerAnchorId != -1) {
-      noStroke();
-      Anchor temp = this.cornerAnchors[this.prevActiveCornerAnchorId];
-      fill(255, 0, 0);
-      circle(temp.absX, temp.absY, 10f);
-      temp = this.cornerAnchors[this.currActiveCornerAnchorId];
-      fill(0, 255, 0);
-      circle(temp.absX, temp.absY, 10f);
-    }
   }
   
   public boolean mouseOverCorner() {
@@ -176,6 +145,14 @@ private class Logo {
         absY = (float) (deltaRelativeY * Math.sin(Math.toRadians(logo.rotation)) + prevAnchor.absY);
         
         currAnchor.updateAbsPosition(absX, absY);
+      }
+    }
+    
+    for (int i = 0; i < 4; i++) {
+      if (Math.floorMod(this.currActiveCornerAnchorId - i, 2) == 0) {
+        this.cornerAnchors[i].active = true;
+      } else {
+        this.cornerAnchors[i].active = false;
       }
     }
   }
@@ -255,8 +232,6 @@ void setup() {
   }
 
   Collections.shuffle(destinations); // randomize the order of the button; don't change this.
-  
-  submitButton = new SubmitButton();
   logo = new Logo();
 }
 
@@ -299,27 +274,28 @@ void draw() {
   //===========DRAW LOGO SQUARE=================
   logo.updateFromMouse();
   logo.drawLogo();
-  
-  //===========DRAW SUBMIT BUTTON=================
-  submitButton.drawButton();
 
   //===========DRAW TRIAL INFO=================
   fill(255);
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchToPix(.8f));
 }
 
-void mouseClicked() {  
-  if (submitButton.underMouse()) {
-    if (userDone==false && !checkForSuccess(true))
-      errorCount++;
+void submit() {  
+  if (userDone==false && !checkForSuccess(true))
+    errorCount++;
 
-    trialIndex++; //and move on to next trial
+  trialIndex++; //and move on to next trial
 
-    if (trialIndex==trialCount && userDone==false)
-    {
-      userDone = true;
-      finishTime = millis();
-    }
+  if (trialIndex==trialCount && userDone==false)
+  {
+    userDone = true;
+    finishTime = millis();
+  }
+}
+
+void mouseDragged() {
+  if (logo.mouseOverCorner()) {
+    logo.lastClickedTime = 0;
   }
 }
 
@@ -329,6 +305,15 @@ void mousePressed()
   {
     startTime = millis();
     println("time started!");
+  }
+  
+  // Simulate double-click
+  float time = millis();
+  if (time - logo.lastClickedTime <= doubleClickTimeInterval) {
+    submit();
+    logo.lastClickedTime = 0;
+  } else {
+    logo.lastClickedTime = time;
   }
   
   // If user is pressing close to center of Logo
